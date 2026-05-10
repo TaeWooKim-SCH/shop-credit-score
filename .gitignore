@@ -1,0 +1,49 @@
+# ── Python ──────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ── Virtualenv ──────────────────────────────────
+.venv/
+venv/
+env/
+
+# ── 데이터 (르몽 raw, 비공개) ────────────────────
+data/
+
+# ── 산출물 (재현 가능, 용량 큼) ──────────────────
+output/
+
+# ── 외부 API 캐시 ───────────────────────────────
+**/external_cache/
+
+# ── IDE / OS ────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ── Streamlit ───────────────────────────────────
+.streamlit/secrets.toml
+
+# ── 환경 변수 / 키 ──────────────────────────────
+.env
+.env.local
+*.pem
+*.key
+
+# ── Jupyter ─────────────────────────────────────
+.ipynb_checkpoints/
+
+# ── Claude Code ─────────────────────────────────
+.claude/settings.local.json

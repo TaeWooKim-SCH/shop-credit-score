@@ -1,0 +1,25 @@
+# 데이터 처리
+pandas>=2.0.0
+numpy>=1.24.0
+openpyxl>=3.1.0
+setuptools  # Python 3.13에서 distutils 폴백 (koreanize-matplotlib 호환)
+
+# 시각화
+matplotlib>=3.7.0
+seaborn>=0.12.0
+koreanize-matplotlib>=0.1.1
+
+# 통계 / 인과추론
+scipy>=1.11.0
+statsmodels>=0.14.0
+
+# 머신러닝
+scikit-learn>=1.6.0  # FrozenEstimator 패턴 사용
+xgboost>=2.0.0
+lightgbm>=4.0.0      # 알고리즘 비교용
+catboost>=1.2.0      # 알고리즘 비교용
+shap>=0.44.0
+
+# GUI 데모
+streamlit>=1.30.0
+plotly>=5.18.0
