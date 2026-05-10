@@ -25,22 +25,31 @@ _LINUX_FONT_CANDIDATES = [
     "/usr/share/fonts/truetype/nanum/NanumGothic.ttf",
     "/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf",
 ]
+_WINDOWS_FONT_CANDIDATES = [
+    r"C:\Windows\Fonts\malgun.ttf",       # 맑은 고딕 (윈도우 기본)
+    r"C:\Windows\Fonts\malgunbd.ttf",     # 맑은 고딕 Bold
+    r"C:\Windows\Fonts\NanumGothic.ttf",  # 나눔고딕 (설치한 경우)
+    r"C:\Windows\Fonts\gulim.ttc",        # 굴림 (구버전 폴백)
+]
+_PREFERRED_FAMILIES = (
+    "NanumGothic", "Malgun Gothic", "AppleSDGothicNeo",
+    "AppleGothic", "Gulim",
+)
 
 
 def setup_korean_font() -> None:
     families = {f.name for f in fm.fontManager.ttflist}
-    target = None
-    if "NanumGothic" in families:
-        target = "NanumGothic"
-    else:
-        for path in _LINUX_FONT_CANDIDATES + _MAC_FONT_CANDIDATES:
+    target = next((c for c in _PREFERRED_FAMILIES if c in families), None)
+
+    if target is None:
+        for path in (_LINUX_FONT_CANDIDATES
+                     + _MAC_FONT_CANDIDATES
+                     + _WINDOWS_FONT_CANDIDATES):
             if os.path.exists(path):
                 fm.fontManager.addfont(path)
         families = {f.name for f in fm.fontManager.ttflist}
-        for cand in ("NanumGothic", "AppleSDGothicNeo", "AppleGothic"):
-            if cand in families:
-                target = cand
-                break
+        target = next((c for c in _PREFERRED_FAMILIES if c in families), None)
+
     if target:
         plt.rcParams.update({"font.family": target, "axes.unicode_minus": False})
     else:

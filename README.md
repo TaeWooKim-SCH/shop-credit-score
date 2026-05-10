@@ -23,32 +23,92 @@
 
 ## 빠른 시작
 
+### 사전 준비
+- **Python 3.10+** (권장 3.11–3.13)
+- **Git**
+- **르몽 raw 데이터 8종** (별도 제공) — `data/` 폴더에 배치
+- (macOS만) **Homebrew + libomp** — XGBoost OpenMP 런타임
+
+### 1) 클론
 ```bash
-# 0) 클론
 git clone https://github.com/<your-username>/shop-credit-score.git
 cd shop-credit-score
+```
 
-# 르몽 raw 데이터 8종을 data/ 폴더에 배치 (별도 제공)
-mkdir -p data
-# data/매장_식별_데이터.json, data/처치_시점_정의_데이터.json, ...
+### 2) 데이터 배치
+```
+shop-credit-score/
+└── data/
+    ├── 매장_식별_데이터.json
+    ├── 처치_시점_정의_데이터.json
+    ├── order_주요_성과_변수.json
+    ├── reviews_주요_성과_변수.json
+    ├── 20260310_통제변수.json
+    └── final_shop_address.xlsx
+```
 
-# 1) 가상환경 + 의존성
+### 3) 가상환경 + 의존성
+
+#### macOS / Linux
+```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-# macOS XGBoost용
+# macOS만: XGBoost OpenMP 런타임
 brew install libomp
+```
 
-# 2) 전체 파이프라인 (4–8분 소요)
+#### Windows (PowerShell)
+```powershell
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+
+# libomp는 wheel에 정적 링크되어 자동
+# 안 될 경우 Microsoft Visual C++ Redistributable 설치:
+# https://aka.ms/vs/17/release/vc_redist.x64.exe
+```
+
+> PowerShell 활성화 차단 시 한 번만:
+> `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser`
+
+#### Windows (Git Bash / WSL)
+macOS / Linux 절차와 동일 (`source .venv/bin/activate`, `python3` 사용)
+
+### 4) 전체 파이프라인 실행 — **필수 (4–8분)**
+
+```bash
 python -m src
+```
 
-# 3) GUI 데모
+> 이 단계가 `output/` 폴더에 17+ 산출물(스코어/모델/JSON/PNG)을 만듭니다.
+> 이 단계를 건너뛰면 다음 GUI에서 "스코어 데이터 없음" 에러가 납니다.
+
+### 5) Streamlit GUI 데모
+
+```bash
 streamlit run app.py
+```
+브라우저가 자동으로 [http://localhost:8501](http://localhost:8501) 열림.
 
-# 4) 외부 데이터 스크래핑 데모 (mock)
+### 6) (선택) 외부 데이터 스크래핑 데모 (mock)
+
+```bash
 python -m scripts.scrape_external --limit 50
 ```
+
+---
+
+### 환경별 호환성 체크리스트
+
+| 항목 | macOS | Linux | Windows |
+|---|---|---|---|
+| `python -m venv` 활성화 | `source .venv/bin/activate` | 동일 | `.venv\Scripts\activate` |
+| XGBoost OpenMP | `brew install libomp` | 보통 자동 (없으면 `apt install libgomp1`) | wheel 자동, 안 되면 VC++ Redistributable |
+| 한글 폰트 (matplotlib) | AppleSDGothicNeo 자동 | NanumGothic (`apt install fonts-nanum`) | 맑은 고딕 자동 |
+| 한글 파일명 인코딩 | UTF-8 | UTF-8 | UTF-8 (Windows 10/11 기본) |
+| Python 3.13 distutils | `setuptools` 폴리필 | 동일 | 동일 |
 
 ---
 
