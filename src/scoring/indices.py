@@ -22,20 +22,29 @@ class IndexCalculator(ABC):
 class RRICalculator(IndexCalculator):
     """RRI: 리뷰 응답 개선 여지 — 응답 안 할수록 ↑.
 
-    응답률은 3유형(사장님 직접 + AI + 마케팅) 합산인 ``any_reply_rate`` 사용.
-    ``owner_reply_rate``(사장님 직접만)는 매우 희소(~0.1%)라 분리 후엔 단독 사용 부적합.
+    표본 크기 보정을 위해 shrunk 컬럼 우선 사용 (없으면 raw로 폴백).
+    리뷰 1건 5점 매장이 만점 받는 등 통계적 유의성 없는 케이스 방지.
     """
 
     name = "RRI (응답개선)"
     column = "idx_RRI"
 
     def compute(self, df: pd.DataFrame) -> pd.Series:
-        reply_rate = self._get_or_default(df, "any_reply_rate", df.get("owner_reply_rate", 0))
+        reply_rate = self._first_available(df, "any_reply_rate_shrunk", "any_reply_rate")
+        neg_ratio = self._first_available(df, "negative_review_ratio_shrunk", "negative_review_ratio")
+        rating = self._first_available(df, "avg_rating_shrunk", "avg_rating")
         return (
             (1 - reply_rate.clip(0, 1)) * 0.50
-            + self._get_or_default(df, "negative_review_ratio", 0.2).clip(0, 1) * 0.30
-            + (1 - df["avg_rating"].clip(0, 5) / 5.0) * 0.20
+            + neg_ratio.clip(0, 1) * 0.30
+            + (1 - rating.clip(0, 5) / 5.0) * 0.20
         ).clip(0, 1)
+
+    @staticmethod
+    def _first_available(df: pd.DataFrame, *cols: str) -> pd.Series:
+        for c in cols:
+            if c in df.columns:
+                return df[c]
+        return pd.Series(0, index=df.index)
 
 
 class OPICalculator(IndexCalculator):
@@ -54,15 +63,19 @@ class OPICalculator(IndexCalculator):
 
 
 class SRICalculator(IndexCalculator):
-    """SRI: 감성 개선 여지."""
+    """SRI: 감성 개선 여지 — shrunk 평점/부정비율 사용으로 표본 크기 보정."""
 
     name = "SRI (감성개선)"
     column = "idx_SRI"
 
     def compute(self, df: pd.DataFrame) -> pd.Series:
+        neg_ratio = RRICalculator._first_available(
+            df, "negative_review_ratio_shrunk", "negative_review_ratio",
+        )
+        rating = RRICalculator._first_available(df, "avg_rating_shrunk", "avg_rating")
         return (
-            self._get_or_default(df, "negative_review_ratio", 0.2).clip(0, 1) * 0.50
-            + (1 - df["avg_rating"].clip(0, 5) / 5.0) * 0.30
+            neg_ratio.clip(0, 1) * 0.50
+            + (1 - rating.clip(0, 5) / 5.0) * 0.30
             + self._get_or_default(df, "rating_std", 0).clip(0, 2) / 2.0 * 0.20
         ).clip(0, 1)
 

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import pandas as pd
 
+from ..config import SHRINKAGE_PRIOR_STRENGTH
+
 
 class ReviewAggregator:
     """리뷰 raw → 매장×월 패널. 날짜/평점 컬럼 자동 감지 + 댓글 3유형 분리."""
@@ -91,6 +93,39 @@ class ReviewAggregator:
             )
         )
         monthly["rating_std"] = monthly["rating_std"].fillna(0)
+        monthly = self._add_shrunk_metrics(monthly, verbose=verbose)
+        return monthly
+
+    def _add_shrunk_metrics(self, monthly: pd.DataFrame, verbose: bool) -> pd.DataFrame:
+        """Empirical Bayes shrinkage: 표본이 작은 매장의 평점/응답률/부정비율을
+        글로벌 평균으로 회귀시켜 표본 크기 보정."""
+        prior = SHRINKAGE_PRIOR_STRENGTH
+        n = monthly["monthly_review_count"]
+
+        # 글로벌 평균은 리뷰 weight를 반영해 가중평균
+        def weighted_mean(col: str) -> float:
+            mask = n > 0
+            return float((monthly.loc[mask, col] * n[mask]).sum() / n[mask].sum())
+
+        global_rating = weighted_mean("avg_rating")
+        global_reply = weighted_mean("any_reply_rate")
+        global_neg = weighted_mean("negative_review_ratio")
+
+        denom = n + prior
+        monthly["avg_rating_shrunk"] = (
+            monthly["avg_rating"] * n + global_rating * prior
+        ) / denom
+        monthly["any_reply_rate_shrunk"] = (
+            monthly["any_reply_rate"] * n + global_reply * prior
+        ) / denom
+        monthly["negative_review_ratio_shrunk"] = (
+            monthly["negative_review_ratio"] * n + global_neg * prior
+        ) / denom
+
+        if verbose:
+            print(f"  [Shrinkage] prior={prior} | "
+                  f"global rating={global_rating:.3f} / "
+                  f"reply={global_reply:.3f} / neg={global_neg:.3f}")
         return monthly
 
     def _detect_date_column(self, df: pd.DataFrame) -> str:

@@ -162,10 +162,18 @@ def render_radar(row: pd.Series) -> go.Figure:
         )
     )
     fig.update_layout(
-        polar=dict(radialaxis=dict(visible=True, range=[0, 1])),
+        polar=dict(
+            radialaxis=dict(
+                visible=True, range=[0, 1],
+                tickvals=[0.2, 0.4, 0.6, 0.8, 1.0],
+                tickfont=dict(size=10),
+            ),
+            angularaxis=dict(tickfont=dict(size=12)),
+        ),
         showlegend=False,
-        margin=dict(l=30, r=30, t=10, b=10),
-        height=340,
+        # 라벨이 잘리지 않도록 위/아래 여백 충분히 확보
+        margin=dict(l=60, r=60, t=50, b=50),
+        height=420,
     )
     return fig
 
@@ -301,7 +309,6 @@ def render_sidebar(scores: pd.DataFrame, did: dict) -> None:
                 )
 
         st.divider()
-        st.caption("실행: `python -m src` → `streamlit run app.py`")
 
 
 # ── 탭 1: 매장 분석 ─────────────────────────────────────────
@@ -361,11 +368,22 @@ def render_tab_shop(scores: pd.DataFrame) -> None:
 
     # ── 결과 카드 (큼직하게 4개) ────────────────────────────
     h1, h2, h3, h4 = st.columns(4)
-    h1.metric("매장명", row.get("shop_name", "—"),
-              help=f"매장 ID: {row['platform_shop_id']}")
+    review_n = int(row.get("monthly_review_count", 0))
+    low_sample = review_n < 5
+    name_help = f"매장 ID: {row['platform_shop_id']}"
+    if low_sample:
+        name_help += f"  |  ⚠ 리뷰 {review_n}건 — 표본 부족, 신뢰도 낮음"
+
+    h1.metric("매장명", row.get("shop_name", "—"), help=name_help)
     h2.metric("그로몽 스코어", f"{row['gromong_score']:.1f}")
     h3.metric("등급", str(row["grade"]))
     h4.metric("성장 확률", f"{row['growth_probability'] * 100:.1f}%")
+
+    if low_sample:
+        st.warning(
+            f"이 매장은 최근 월 리뷰 {review_n}건으로 표본이 적어 평점/응답률 신뢰도가 낮습니다. "
+            f"스코어는 글로벌 평균으로 회귀(Bayesian shrinkage) 적용 후 산출되었습니다."
+        )
 
     # ── 차트 + 표 ───────────────────────────────────────────
     left, right = st.columns([1, 1])

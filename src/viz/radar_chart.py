@@ -24,19 +24,30 @@ class RadarChart:
         N = len(self.CATEGORIES)
         angles = [n / float(N) * 2 * np.pi for n in range(N)] + [0]
 
-        fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
+        # 12시 방향이 첫 항목(RRI)이 되도록 회전 + 시계방향
+        fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True))
+        ax.set_theta_offset(np.pi / 2)
+        ax.set_theta_direction(-1)
+
         ax.plot(angles, values, "o-", linewidth=2, color="tomato")
         ax.fill(angles, values, alpha=0.25, color="tomato")
         ax.set_xticks(angles[:-1])
         ax.set_xticklabels(self.CATEGORIES, size=11)
         ax.set_ylim(0, 1)
-        ax.set_title(
-            f"그로몽 지수 레이더\n{shop_id}\n"
-            f"스코어: {row['gromong_score']:.1f}점  ({row['grade']}등급)",
-            size=12, pad=20,
+        ax.set_yticks([0.2, 0.4, 0.6, 0.8, 1.0])
+        ax.set_yticklabels(["0.2", "0.4", "0.6", "0.8", "1.0"], size=8)
+        ax.tick_params(axis="x", pad=15)  # 라벨이 원과 겹치지 않게
+
+        # 제목은 suptitle로 빼서 폴라 라벨과 충돌 방지
+        fig.suptitle(
+            f"그로몽 지수 레이더 — {shop_id}\n"
+            f"스코어 {row['gromong_score']:.1f}점  ({row['grade']}등급)",
+            size=12, y=0.98,
         )
-        plt.tight_layout()
+        # 위/아래 여백 명시
+        fig.subplots_adjust(top=0.85, bottom=0.10, left=0.10, right=0.90)
+
         out_path = self.paths.output_dir / f"radar_{shop_id}.png"
-        fig.savefig(out_path, dpi=150, bbox_inches="tight")
+        fig.savefig(out_path, dpi=150, bbox_inches="tight", pad_inches=0.4)
         plt.close(fig)
         return out_path

@@ -1,0 +1,7 @@
+{
+  "method": "isotonic",
+  "brier_before": 0.32857099175453186,
+  "brier_after": 0.18448166008070166,
+  "log_loss_before": 0.8781710907716412,
+  "log_loss_after": 0.5581944374718314
+}
