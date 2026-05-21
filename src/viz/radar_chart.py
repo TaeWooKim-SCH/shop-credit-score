@@ -10,10 +10,13 @@ from ..config import Paths
 
 
 class RadarChart:
-    """매장별 4개 지수 레이더 차트."""
+    """매장별 5개 지수 레이더 차트 (RRI/OPI/SRI/RSI/MRI)."""
 
-    CATEGORIES = ["RRI\n응답개선", "OPI\n주문성과", "SRI\n감성개선", "RSI\n운영안정"]
-    INDEX_COLS = ["idx_RRI", "idx_OPI", "idx_SRI", "idx_RSI"]
+    CATEGORIES = [
+        "RRI\n응답개선", "OPI\n주문성과", "SRI\n감성개선",
+        "RSI\n운영안정", "MRI\n시장평판",
+    ]
+    INDEX_COLS = ["idx_RRI", "idx_OPI", "idx_SRI", "idx_RSI", "idx_MRI"]
 
     def __init__(self, paths: Paths):
         self.paths = paths

@@ -150,8 +150,12 @@ def load_model_dataset(output_dir: str) -> pd.DataFrame:
 
 # ── 차트 ─────────────────────────────────────────────────────
 def render_radar(row: pd.Series) -> go.Figure:
-    categories = ["RRI<br>응답개선", "OPI<br>주문성과", "SRI<br>감성개선", "RSI<br>운영안정"]
-    values = [row["idx_RRI"], row["idx_OPI"], row["idx_SRI"], row["idx_RSI"]]
+    categories = [
+        "RRI<br>응답개선", "OPI<br>주문성과", "SRI<br>감성개선",
+        "RSI<br>운영안정", "MRI<br>시장평판",
+    ]
+    idx_cols = ["idx_RRI", "idx_OPI", "idx_SRI", "idx_RSI", "idx_MRI"]
+    values = [row.get(c, 0) for c in idx_cols]
     fig = go.Figure(
         data=go.Scatterpolar(
             r=values + values[:1],
@@ -252,17 +256,14 @@ def render_cluster_scatter(scores: pd.DataFrame) -> go.Figure | None:
 
 
 def render_index_table(row: pd.Series) -> pd.DataFrame:
+    labels = ["RRI 응답개선", "OPI 주문성과", "SRI 감성개선",
+              "RSI 운영안정", "MRI 시장평판"]
+    cols = ["idx_RRI", "idx_OPI", "idx_SRI", "idx_RSI", "idx_MRI"]
+    vals_raw = [row.get(c, 0) for c in cols]
     return pd.DataFrame({
-        "지수": ["RRI 응답개선", "OPI 주문성과", "SRI 감성개선", "RSI 운영안정"],
-        "점수": [
-            f"{row['idx_RRI'] * 100:.1f}",
-            f"{row['idx_OPI'] * 100:.1f}",
-            f"{row['idx_SRI'] * 100:.1f}",
-            f"{row['idx_RSI'] * 100:.1f}",
-        ],
-        "0~1": [
-            row["idx_RRI"], row["idx_OPI"], row["idx_SRI"], row["idx_RSI"],
-        ],
+        "지수": labels,
+        "점수": [f"{v * 100:.1f}" for v in vals_raw],
+        "0~1": vals_raw,
     })
 
 
@@ -366,8 +367,8 @@ def render_tab_shop(scores: pd.DataFrame) -> None:
 
     st.divider()
 
-    # ── 결과 카드 (큼직하게 4개) ────────────────────────────
-    h1, h2, h3, h4 = st.columns(4)
+    # ── 결과 카드 ─────────────────────────────────────────────
+    h1, h2, h3, h4, h5 = st.columns(5)
     review_n = int(row.get("monthly_review_count", 0))
     low_sample = review_n < 5
     name_help = f"매장 ID: {row['platform_shop_id']}"
@@ -378,6 +379,14 @@ def render_tab_shop(scores: pd.DataFrame) -> None:
     h2.metric("그로몽 스코어", f"{row['gromong_score']:.1f}")
     h3.metric("등급", str(row["grade"]))
     h4.metric("성장 확률", f"{row['growth_probability'] * 100:.1f}%")
+
+    roi_help = "댓글몽 도입 시 12개월 누적 ROI (마진율 25%, 월 구독료 5만원 가정)"
+    roi_val = row.get("expected_roi_12m")
+    if roi_val is not None and not pd.isna(roi_val):
+        roi_pct = f"{roi_val * 100:.1f}%"
+        h5.metric("예상 12M ROI", roi_pct, help=roi_help)
+    else:
+        h5.metric("예상 12M ROI", "—", help=roi_help)
 
     if low_sample:
         st.warning(
@@ -434,6 +443,55 @@ def render_tab_shop(scores: pd.DataFrame) -> None:
         m1.metric("성장 (+10% 이상)", f"{row['prob_1'] * 100:.1f}%")
         m2.metric("유지", f"{row['prob_0'] * 100:.1f}%")
         m3.metric("하락 (-10% 이하)", f"{row['prob_-1'] * 100:.1f}%")
+
+    # ── ROI 시뮬레이션 (CATE 기반) ───────────────────────────
+    if "expected_roi_12m" in row and not pd.isna(row.get("expected_roi_12m", float("nan"))):
+        st.divider()
+        st.markdown("**ROI 시뮬레이션 — 댓글몽 도입 시 예상 수익**")
+        r1, r2, r3, r4 = st.columns(4)
+        cate = row.get("predicted_treatment_effect", 0)
+        r1.metric(
+            "예상 월 추가 주문",
+            f"{row.get('expected_orders_per_month', 0):.1f} 건",
+            help=f"Causal Forest CATE = {cate:.2f}건/월 (매장 특성 기반)",
+        )
+        r2.metric("예상 월 추가 매출",
+                  f"{row.get('expected_revenue_per_month', 0):,.0f} 원")
+        r3.metric("예상 월 순이익", f"{row.get('expected_profit_per_month', 0):,.0f} 원",
+                  help="추가 매출 × 마진율 25% - 월 구독료 5만원")
+        payback = row.get("payback_months")
+        if payback is not None and not pd.isna(payback):
+            r4.metric("Payback", f"{payback:.1f}개월")
+        else:
+            r4.metric("Payback", "—", help="월 순이익이 낮아 회수 어려움")
+
+        with st.expander("ROI 가정 + 12개월 누적 곡선"):
+            st.markdown(
+                "**가정**: 마진율 25%, 월 구독료 50,000원, 시뮬레이션 12개월 "
+                "(가정은 르몽 실제 가격 확인 필요)"
+            )
+            from src.scoring import ROISimulator
+            curve = ROISimulator().cumulative_curve(
+                cate=float(cate),
+                aov=float(row.get("avg_order_value", 0)),
+            )
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=curve["month"], y=curve["cumulative_profit"],
+                mode="lines+markers", name="누적 순이익",
+                line=dict(color="#27ae60", width=2),
+            ))
+            fig.add_trace(go.Scatter(
+                x=curve["month"], y=curve["cumulative_fee"],
+                mode="lines+markers", name="누적 구독료",
+                line=dict(color="#e74c3c", dash="dash", width=2),
+            ))
+            fig.add_hline(y=0, line_color="black", line_width=1)
+            fig.update_layout(
+                height=340, margin=dict(l=20, r=20, t=20, b=20),
+                xaxis_title="개월", yaxis_title="누적 금액 (원)",
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
     # ── AI 추천 액션 ────────────────────────────────────────
     st.markdown("**AI 추천 액션**")

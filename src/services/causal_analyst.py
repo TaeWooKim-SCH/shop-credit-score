@@ -5,11 +5,13 @@ import json
 import pandas as pd
 
 from ..analysis import (
+    CausalForestEstimator,
     DIDEstimator,
     DIDResult,
     EventStudyAnalyzer,
     EventStudyResult,
     HomogeneityTester,
+    HTEResult,
     PSMMatcher,
     PSMResult,
 )
@@ -18,9 +20,10 @@ from ..viz import CausalPlotter, EdaPlotter
 
 
 class CausalAnalyst:
-    """Phase 1–3 오케스트레이션. 분석 객체 + EDA/Causal 플로터 조립."""
+    """Phase 1–3 오케스트레이션 + Phase 3.5 HTE (Causal Forest)."""
 
     SUMMARY_FILE = "did_summary.json"
+    CATE_FILE = "cate_per_shop.csv"
 
     def __init__(
         self,
@@ -31,6 +34,8 @@ class CausalAnalyst:
         psm_matcher: PSMMatcher | None = None,
         eda_plotter: EdaPlotter | None = None,
         causal_plotter: CausalPlotter | None = None,
+        causal_forest: CausalForestEstimator | None = None,
+        run_hte: bool = True,
     ):
         self.paths = paths
         self.tester = homogeneity_tester or HomogeneityTester()
@@ -39,10 +44,13 @@ class CausalAnalyst:
         self.psm = psm_matcher or PSMMatcher()
         self.eda_plotter = eda_plotter or EdaPlotter(paths)
         self.causal_plotter = causal_plotter or CausalPlotter(paths)
+        self.causal_forest = causal_forest or CausalForestEstimator()
+        self.run_hte = run_hte
 
         self.did_result: DIDResult | None = None
         self.event_result: EventStudyResult | None = None
         self.psm_result: PSMResult | None = None
+        self.hte_result: HTEResult | None = None
 
     def run(
         self, master: pd.DataFrame, master_labeled: pd.DataFrame | None = None,
@@ -50,6 +58,8 @@ class CausalAnalyst:
         self._run_eda(master, master_labeled)
         self._run_did(master)
         self._run_psm(master)
+        if self.run_hte:
+            self._run_hte(master)
         self._save_summary()
         return self._summary_dict()
 
@@ -95,6 +105,18 @@ class CausalAnalyst:
             master, result, baseline_att=baseline_att,
         )
 
+    def _run_hte(self, master: pd.DataFrame) -> None:
+        print("\n" + "=" * 60)
+        print("PHASE 3.5 ▸ HTE (Causal Forest) — 매장별 개별 처치효과")
+        print("=" * 60)
+        self.hte_result = self.causal_forest.fit_predict(master)
+        if not self.hte_result.cate_per_shop.empty:
+            out_path = self.paths.output_dir / self.CATE_FILE
+            self.hte_result.cate_per_shop.to_csv(
+                out_path, index=False, encoding="utf-8-sig"
+            )
+            print(f"  매장별 CATE 저장: {out_path}")
+
     def _print_label_summary(self, master_labeled: pd.DataFrame) -> None:
         summary = master_labeled.groupby("growth_label").agg(
             avg_sales=("monthly_sales", "mean"),
@@ -122,6 +144,7 @@ class CausalAnalyst:
         d = self.did_result
         e = self.event_result
         p = self.psm_result
+        h = self.hte_result
         return {
             "att": d.att if d else None,
             "p": d.p_value if d else None,
@@ -132,6 +155,9 @@ class CausalAnalyst:
             "att_psm": p.att_psm if p else None,
             "p_psm": p.p_value_psm if p else None,
             "matched_n": p.matched_n if p else 0,
+            "hte_mean_cate": h.mean_cate if h else None,
+            "hte_std_cate": h.std_cate if h else None,
+            "hte_n_shops": len(h.cate_per_shop) if h else 0,
         }
 
     def _save_summary(self) -> None:

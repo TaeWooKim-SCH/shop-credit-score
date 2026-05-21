@@ -1,5 +1,22 @@
+import os
 from dataclasses import dataclass
 from pathlib import Path
+
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    pass
+
+
+# ── 외부 API 키 (없으면 None 폴백) ──────────────────────────────
+NAVER_CLIENT_ID = os.getenv("NAVER_CLIENT_ID")
+NAVER_CLIENT_SECRET = os.getenv("NAVER_CLIENT_SECRET")
+SGIS_CONSUMER_KEY = os.getenv("SGIS_CONSUMER_KEY")
+SGIS_CONSUMER_SECRET = os.getenv("SGIS_CONSUMER_SECRET")
+DATA_GO_KR_SERVICE_KEY = os.getenv("DATA_GO_KR_SERVICE_KEY")
+KAKAO_REST_API_KEY = os.getenv("KAKAO_REST_API_KEY")
 
 
 @dataclass
@@ -44,10 +61,11 @@ class Paths:
 
 
 DEFAULT_WEIGHTS = {
-    "RRI (응답개선)": 0.30,
-    "OPI (주문성과)": 0.30,
-    "SRI (감성개선)": 0.25,
+    "RRI (응답개선)": 0.25,
+    "OPI (주문성과)": 0.25,
+    "SRI (감성개선)": 0.20,
     "RSI (운영안정)": 0.15,
+    "MRI (시장평판)": 0.15,
 }
 
 INDEX_KEY_MAP = {
@@ -55,6 +73,7 @@ INDEX_KEY_MAP = {
     "idx_OPI": "OPI (주문성과)",
     "idx_SRI": "SRI (감성개선)",
     "idx_RSI": "RSI (운영안정)",
+    "idx_MRI": "MRI (시장평판)",
 }
 
 GRADE_LABELS = ["D", "C", "B", "A", "S"]
@@ -97,3 +116,11 @@ TRAIN_QUANTILE = 0.8
 MIN_MONTHS_FOR_SCORING = 6
 PSM_CALIPER_MULT = 0.2
 EVENT_WINDOW = (-6, 6)
+
+# ── ROI 시뮬레이션 (Phase 3) ────────────────────────────────────
+# 매장별 CATE × avg_order_value × 마진율 - 댓글몽 구독료 → ROI
+ROI_MARGIN_RATE = 0.25                # F&B 평균 영업이익률 (가정, 통계청 자료 참고)
+ROI_COMMENT_MONG_MONTHLY_FEE = 50000  # 댓글몽 월 구독료 (예시, 르몽 확인 필요)
+ROI_HORIZON_MONTHS = 12               # 시뮬레이션 기간 (기본 12개월)
+# 모델이 CATE를 예측 못 한 매장(통제군 등)은 전체 ATT를 폴백 효과로 사용
+ROI_FALLBACK_EFFECT_BUILTIN = None

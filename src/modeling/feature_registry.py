@@ -11,6 +11,7 @@ class FeatureRegistry:
         "monthly_order_count", "monthly_sales", "avg_order_value",
         "sales_growth_mom", "order_growth_mom",
         "sales_log", "orders_log", "weekend_ratio", "peak_ratio",
+        "predicted_treatment_effect",  # Causal Forest CATE (HTE)
     ]
     FEAT_SRI = [
         "monthly_review_count", "avg_rating", "rating_std",
@@ -26,6 +27,11 @@ class FeatureRegistry:
         "menu_count", "active_menu_ratio", "avg_delivery_price", "avg_pickup_price",
         "order_cv", "sales_vs_brand_avg", "sales_rank_in_brand",
     ]
+    FEAT_MRI = [
+        "naver_visibility_score", "naver_blog_mention", "naver_sns_mention",
+        "competition_density", "competitor_count_1km", "total_shops_1km",
+        "tot_ppltn", "avg_age", "tot_household",
+    ]
     CATEGORY_COLS = ["category_name", "brand_name", "group_type"]
 
     GROUP_KEY_MAP = {
@@ -33,6 +39,7 @@ class FeatureRegistry:
         "OPI (주문성과)": FEAT_OPI,
         "SRI (감성개선)": FEAT_SRI,
         "RSI (운영안정)": FEAT_RSI,
+        "MRI (시장평판)": FEAT_MRI,
     }
 
     def __init__(self):
@@ -44,8 +51,8 @@ class FeatureRegistry:
         present = lambda cols: [c for c in cols if c in master.columns]
         self.groups = {name: present(cols) for name, cols in self.GROUP_KEY_MAP.items()}
         ordered: list[str] = []
-        for name in ["OPI (주문성과)", "SRI (감성개선)",
-                     "RRI (응답개선)", "RSI (운영안정)"]:
+        for name in ["OPI (주문성과)", "SRI (감성개선)", "RRI (응답개선)",
+                     "RSI (운영안정)", "MRI (시장평판)"]:
             ordered.extend(self.groups[name])
         self.feature_cols = list(dict.fromkeys(ordered))
         self.cat_cols = [c for c in self.CATEGORY_COLS if c in master.columns]

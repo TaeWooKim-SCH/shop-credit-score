@@ -21,13 +21,21 @@ DEMO_SHOP_ID = "ba_10015935"
 OUTPUT_FILES = [
     "master_dataset.csv", "model_dataset_with_score.csv",
     "latest_shop_scores.csv", "shap_feature_importance.csv",
-    "shap_weights.json", "did_summary.json",
+    "shap_weights.json", "did_summary.json", "cate_per_shop.csv",
     "eda_monthly_trend.png", "eda_rating_dist.png", "eda_brand_sales_dist.png",
     "psm_propensity_dist.png", "event_study_plot.png",
     "roc_curve.png", "shap_importance.png", "weight_comparison.png",
     "index_distribution.png", "grade_score_dist.png",
     f"radar_{DEMO_SHOP_ID}.png",
 ]
+
+
+def _merge_cate_into_master(master, hte_result):
+    """CausalAnalyst가 산출한 매장별 CATE를 master 전 시점 행에 left join."""
+    if hte_result is None or hte_result.cate_per_shop.empty:
+        return master
+    cate = hte_result.cate_per_shop[["platform_shop_id", "predicted_treatment_effect"]]
+    return master.merge(cate, on="platform_shop_id", how="left")
 
 
 def main() -> None:
@@ -41,13 +49,19 @@ def main() -> None:
     ca = CausalAnalyst(paths)
     ca.run(master, master_labeled)
 
+    # HTE 결과를 master / master_labeled에 피처로 주입
+    master = _merge_cate_into_master(master, ca.hte_result)
+    master_labeled = _merge_cate_into_master(master_labeled, ca.hte_result)
+
     ml = MLModeler(paths)
     model_df, shap_weights, _ = ml.run(master, master_labeled)
 
-    sb = ScoreBuilder(paths)
+    # ROI fallback effect = DID ATT (CATE 결측 매장에 적용)
+    fallback = ca.did_result.att if ca.did_result and ca.did_result.att else None
+    sb = ScoreBuilder(paths, fallback_effect=fallback)
     sb.run(master, model_df, shap_weights, demo_id=DEMO_SHOP_ID)
 
-    print("\n✅ 전체 파이프라인 완료")
+    print("\n전체 파이프라인 완료")
     print("저장 파일 목록:")
     for fname in OUTPUT_FILES:
         print(f"  - output/{fname}")

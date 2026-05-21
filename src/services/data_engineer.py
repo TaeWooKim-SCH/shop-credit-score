@@ -67,6 +67,10 @@ class DataEngineer:
             master = master.merge(
                 sentiment_monthly, on=["platform_shop_id", "year_month"], how="left",
             )
+
+        # 외부 데이터 (Phase 1) — 매장 단위 left join, 결측은 0으로 채움
+        master = self._merge_external_data(master)
+
         print(f"\n[master] shape: {master.shape}")
 
         master = self.treatment_panel.add(master)
@@ -77,6 +81,52 @@ class DataEngineer:
         self.master = master
         self.master_labeled = labeled
         return master, labeled
+
+    def _merge_external_data(self, master: pd.DataFrame) -> pd.DataFrame:
+        """output/external_*.csv 가 존재하면 매장 단위로 left join.
+
+        - external_naver.csv → naver_visibility_score, naver_blog_mention, naver_sns_mention
+        - external_sbiz.csv  → competitor_count_1km, total_shops_1km, competition_density
+        - external_sgis.csv  → tot_ppltn, avg_age, tot_household
+        """
+        import pandas as pd
+
+        external_specs = {
+            "external_naver.csv": {
+                "visibility_score": "naver_visibility_score",
+                "blog_mention_30d": "naver_blog_mention",
+                "sns_mention_30d": "naver_sns_mention",
+            },
+            "external_sbiz.csv": {
+                "competitor_count_1km": "competitor_count_1km",
+                "total_shops_1km": "total_shops_1km",
+                "competition_density": "competition_density",
+            },
+            "external_sgis.csv": {
+                "tot_ppltn": "tot_ppltn",
+                "avg_age": "avg_age",
+                "tot_household": "tot_household",
+            },
+        }
+        for fname, col_map in external_specs.items():
+            path = self.paths.output_dir / fname
+            if not path.exists():
+                continue
+            ext = pd.read_csv(path)
+            # 필요한 컬럼만 추출 + rename
+            keep = {src: dst for src, dst in col_map.items() if src in ext.columns}
+            if not keep:
+                continue
+            ext_slim = ext[["platform_shop_id", *keep.keys()]].rename(columns=keep)
+            ext_slim = ext_slim.drop_duplicates("platform_shop_id")
+            master = master.merge(ext_slim, on="platform_shop_id", how="left")
+            # 결측 0으로 (수집 안 된 매장 = 신호 없음)
+            for c in keep.values():
+                if c in master.columns:
+                    master[c] = master[c].fillna(0)
+            print(f"  [External] {fname} 병합: {len(ext_slim)}개 매장, "
+                  f"컬럼 {list(keep.values())}")
+        return master
 
     def _build_sentiment(self, review_raw: pd.DataFrame) -> pd.DataFrame:
         # ReviewAggregator는 raw에서 review_date/year_month/rating을 만들기 위해 transform을 호출하지만

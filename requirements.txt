@@ -12,10 +12,11 @@ koreanize-matplotlib>=0.1.1
 # 통계 / 인과추론
 scipy>=1.11.0
 statsmodels>=0.14.0
+econml>=0.15.0       # Causal Forest (HTE 매장별 처치효과 추정)
 
 # 머신러닝
 scikit-learn>=1.6.0  # FrozenEstimator 패턴 사용
-xgboost>=2.0.0
+xgboost>=2.0.0,<3.0   # 3.x 는 shap 0.48 호환성 버그 (base_score 파싱)
 lightgbm>=4.0.0      # 알고리즘 비교용
 catboost>=1.2.0      # 알고리즘 비교용
 shap>=0.44.0
@@ -23,3 +24,7 @@ shap>=0.44.0
 # GUI 데모
 streamlit>=1.30.0
 plotly>=5.18.0
+
+# 외부 API
+python-dotenv>=1.0.0
+requests>=2.31.0

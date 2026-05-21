@@ -11,7 +11,8 @@ class ModelPlotter:
     """모델 시각화: ROC 곡선 / SHAP 중요도 / 가중치 비교."""
 
     GROUP_AXIS_LABELS = ["RRI\n(응답개선)", "OPI\n(주문성과)",
-                         "SRI\n(감성개선)", "RSI\n(운영안정)"]
+                         "SRI\n(감성개선)", "RSI\n(운영안정)",
+                         "MRI\n(시장평판)"]
 
     def __init__(self, paths: Paths):
         self.paths = paths

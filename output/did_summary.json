@@ -7,5 +7,8 @@
   "parallel_trends_p": 0.9343598264800689,
   "att_psm": 98.9925114959212,
   "p_psm": 1.4404324403331576e-15,
-  "matched_n": 920
+  "matched_n": 920,
+  "hte_mean_cate": 38.06822184894509,
+  "hte_std_cate": 47.865530379188556,
+  "hte_n_shops": 1082
 }

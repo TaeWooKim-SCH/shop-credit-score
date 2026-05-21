@@ -1,3 +1,4 @@
+from .causal_forest import CausalForestEstimator, HTEResult
 from .did_estimator import DIDEstimator, DIDResult
 from .event_study import EventStudyAnalyzer, EventStudyResult
 from .homogeneity_tester import HomogeneityResult, HomogeneityTester
@@ -8,4 +9,5 @@ __all__ = [
     "DIDEstimator", "DIDResult",
     "EventStudyAnalyzer", "EventStudyResult",
     "PSMMatcher", "PSMResult",
+    "CausalForestEstimator", "HTEResult",
 ]

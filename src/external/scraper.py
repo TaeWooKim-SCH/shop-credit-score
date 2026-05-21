@@ -31,7 +31,7 @@ class ExternalDataScraper(ABC):
     """
 
     DEFAULT_CACHE_TTL_HOURS = 24
-    DEFAULT_RATE_LIMIT_SECONDS = 1.5  # 매장당 최소 간격
+    DEFAULT_RATE_LIMIT_SECONDS = 0.4  # 매장당 최소 간격 (네이버 일 25K 한도 내)
 
     def __init__(self, cache_dir: Path | str = "output/external_cache"):
         self.cache_dir = Path(cache_dir)

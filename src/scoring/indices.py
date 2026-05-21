@@ -98,13 +98,54 @@ class RSICalculator(IndexCalculator):
         ).clip(0, 1)
 
 
+class MRICalculator(IndexCalculator):
+    """MRI: 시장 평판 / 입지 — 네이버 노출 + 블로그·SNS 언급 + (선택) 경쟁밀도/인구.
+
+    "비슷한 매장이 왜 다르게 성장하는지"의 외부 환경 변수.
+    높을수록 시장에서 잘 알려진 매장 + 좋은 입지.
+    """
+
+    name = "MRI (시장평판)"
+    column = "idx_MRI"
+
+    LOG_BLOG_DIVISOR = 7.0  # log(blog_total)을 0~1로 정규화 (log(1100) ≈ 7)
+    LOG_SNS_DIVISOR = 7.0
+
+    def compute(self, df: pd.DataFrame) -> pd.Series:
+        import numpy as np
+
+        # 네이버: visibility (0~1) + 블로그 언급 log + SNS 언급 log
+        vis = self._get_or_default(df, "naver_visibility_score", 0.0).clip(0, 1)
+        blog = self._get_or_default(df, "naver_blog_mention", 0.0)
+        sns = self._get_or_default(df, "naver_sns_mention", 0.0)
+        blog_norm = (np.log1p(blog.clip(lower=0)) / self.LOG_BLOG_DIVISOR).clip(0, 1)
+        sns_norm = (np.log1p(sns.clip(lower=0)) / self.LOG_SNS_DIVISOR).clip(0, 1)
+
+        # 경쟁 밀도 (소상공인 API): 1 - density 만큼 좋음 (경쟁 덜할수록 ↑)
+        comp_density = self._get_or_default(df, "competition_density", 0.5).clip(0, 1)
+        comp_inv = 1.0 - comp_density
+
+        # 입지 인구 (SGIS): 인구 많을수록 좋음 (log 정규화)
+        ppltn = self._get_or_default(df, "tot_ppltn", 0.0)
+        ppltn_norm = (np.log1p(ppltn.clip(lower=0)) / 12.0).clip(0, 1)  # log(160K) ≈ 12
+
+        return (
+            vis * 0.30
+            + blog_norm * 0.20
+            + sns_norm * 0.10
+            + comp_inv * 0.20
+            + ppltn_norm * 0.20
+        ).clip(0, 1)
+
+
 class IndexCalculatorRegistry:
-    """4개 지수 계산기를 보관하고 일괄 적용."""
+    """5개 지수 계산기를 보관하고 일괄 적용."""
 
     def __init__(self, calculators: list[IndexCalculator] | None = None):
         self.calculators = calculators or [
             RRICalculator(), OPICalculator(),
             SRICalculator(), RSICalculator(),
+            MRICalculator(),
         ]
 
     def apply(self, df: pd.DataFrame) -> pd.DataFrame:
